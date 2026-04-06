@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FocusTrack">
+<meta name="theme-color" content="#080a0f">
+<title>FocusTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600;9..144,700&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080a0f; --surf:#111318; --surf2:#191c24; --surf3:#21252f;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.12);
+  --text:#eef0f5; --muted:#5a6070; --muted2:#8a94a6;
+  --amber:#f0a500; --teal:#00c896; --rose:#ff5c7a;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#view{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  padding-bottom:calc(var(--safe-b) + 74px);
+  transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .32s}
+.screen::-webkit-scrollbar{display:none}
+.screen-inner{padding:calc(var(--safe-t) + 16px) 16px 0}
+.screen.off-left{transform:translateX(-100%);opacity:0;pointer-events:none}
+.screen.off-right{transform:translateX(100%);opacity:0;pointer-events:none}
+
+/* NAV */
+#nav{position:fixed;bottom:0;left:0;right:0;padding-bottom:var(--safe-b);
+  background:rgba(8,10,15,.92);backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);z-index:50}
+.nav-row{display:flex;justify-content:space-around;padding:8px 0 2px}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
+  color:var(--muted);cursor:pointer;padding:6px 28px;font-size:10px;font-family:'Outfit',sans-serif;
+  letter-spacing:.06em;text-transform:uppercase;transition:color .2s;border-radius:14px}
+.nb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
+.nb.active{color:var(--amber)}
+.nb.active svg{filter:drop-shadow(0 0 8px rgba(240,165,0,.5))}
+
+/* TYPOGRAPHY */
+.pg-title{font-family:'Fraunces',serif;font-size:30px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted2);margin-bottom:20px}
+.sec-label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px;margin-top:22px}
+.card{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:18px;margin-bottom:12px}
+
+/* COURSE CARDS */
+.course-card{background:var(--surf);border:1px solid var(--border);border-radius:22px;
+  padding:0 0 16px;margin-bottom:12px;cursor:pointer;overflow:hidden;
+  transition:transform .15s;animation:fi .3s ease;
+  -webkit-appearance:none;width:100%;text-align:left;font-family:'Outfit',sans-serif;color:var(--text)}
+.course-card:active{transform:scale(.98)}
+.cc-top{height:4px;width:100%}
+.cc-body{padding:16px 18px 0}
+.cc-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.cc-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:22px;flex-shrink:0}
+.cc-name{font-family:'Fraunces',serif;font-size:19px;font-weight:600;line-height:1.2;margin-bottom:2px}
+.cc-meta{font-size:12px;color:var(--muted2)}
+.cc-stats{display:flex;gap:0;border-top:1px solid var(--border);padding:12px 18px 0}
+.cc-stat{flex:1}
+.cc-stat+.cc-stat{border-left:1px solid var(--border);padding-left:14px}
+.cc-stat-val{font-family:'DM Mono',monospace;font-size:20px}
+.cc-stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:1px}
+.sparkline{display:flex;align-items:flex-end;gap:3px;height:28px;padding:0 18px;margin-top:10px}
+.spark-bar{flex:1;border-radius:3px 3px 0 0;transition:height .4s}
+.running-badge{display:inline-flex;align-items:center;gap:5px;
+  background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.3);
+  border-radius:50px;padding:3px 10px;font-size:11px;color:var(--amber);margin-top:5px}
+.rdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);
+  animation:pdot 1.2s infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.65)}}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(var(--safe-b)+80px);right:16px;
+  width:52px;height:52px;border-radius:50%;background:var(--amber);border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 24px rgba(240,165,0,.4);z-index:999;transition:transform .15s}
+.fab:active{transform:scale(.91)}
+.fab svg{width:22px;height:22px;stroke:#000;fill:none;stroke-width:2.5}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:100;
+  display:flex;align-items:flex-end;backdrop-filter:blur(6px);
+  opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.open{opacity:1;pointer-events:all}
+.sheet{background:var(--surf);border-radius:28px 28px 0 0;
+  padding:20px 20px calc(var(--safe-b)+24px);width:100%;
+  transform:translateY(100%);transition:transform .35s cubic-bezier(.34,1.1,.64,1)}
+.overlay.open .sheet{transform:translateY(0)}
+.handle{width:36px;height:4px;background:var(--surf3);border-radius:2px;margin:0 auto 18px}
+.sheet-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700;margin-bottom:18px}
+.lbl{font-size:12px;color:var(--muted2);margin-bottom:6px;font-weight:500}
+.inp{width:100%;background:var(--surf2);border:1px solid var(--border);border-radius:14px;
+  padding:13px 15px;color:var(--text);font-family:'Outfit',sans-serif;font-size:16px;outline:none}
+.inp:focus{border-color:var(--amber)}
+.inp::placeholder{color:var(--muted)}
+.emoji-row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.emoji-opt{width:42px;height:42px;border-radius:12px;background:var(--surf2);border:2px solid transparent;
+  cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.emoji-opt.on{border-color:#fff;background:var(--surf3)}
+.color-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.c-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.c-dot.on{border-color:#fff;transform:scale(1.15)}
+.btn-full{width:100%;padding:15px;background:var(--amber);color:#000;border:none;
+  border-radius:16px;font-family:'Fraunces',serif;font-size:17px;font-weight:700;cursor:pointer;transition:transform .15s}
+.btn-full:active{transform:scale(.97)}
+.btn-ghost{background:none;border:1px solid var(--border2);color:var(--muted2);padding:12px;
+  border-radius:14px;font-family:'Outfit',sans-serif;font-size:14px;cursor:pointer;width:100%;margin-top:8px}
+
+/* COURSE DETAIL */
+#screen-course .screen-inner{padding-top:calc(var(--safe-t)+10px)}
+.back-row{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
+.back-btn{width:36px;height:36px;border-radius:12px;background:var(--surf2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center}
+.back-btn svg{width:18px;height:18px;stroke:var(--muted2);fill:none;stroke-width:2.2}
+.course-hero{text-align:center;padding:16px 0 24px}
+.hero-icon{width:72px;height:72px;border-radius:22px;margin:0 auto 12px;
+  display:flex;align-items:center;justify-content:center;font-size:34px}
+.hero-name{font-family:'Fraunces',serif;font-size:26px;font-weight:700;margin-bottom:3px}
+.hero-sub{font-size:13px;color:var(--muted2)}
+.timer-wrap{text-align:center;margin-bottom:24px}
+.clock{font-family:'DM Mono',monospace;font-size:58px;font-weight:300;letter-spacing:-2px;line-height:1;transition:color .3s}
+.clock.running{color:var(--amber);text-shadow:0 0 50px rgba(240,165,0,.25)}
+.clock-sub{font-size:13px;color:var(--muted);margin-top:6px;height:18px}
+.timer-btns{display:flex;gap:10px;justify-content:center;margin-bottom:6px}
+.t-btn{padding:14px 34px;border-radius:50px;font-family:'Fraunces',serif;font-weight:700;font-size:16px;
+  cursor:pointer;border:none;transition:transform .15s}
+.t-btn:active{transform:scale(.94)}
+.t-start{background:var(--amber);color:#000;box-shadow:0 4px 24px rgba(240,165,0,.3)}
+.t-stop{background:var(--surf2);color:var(--text);border:1px solid var(--border2)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-tile{background:var(--surf);border:1px solid var(--border);border-radius:18px;padding:16px}
+.stat-tile-val{font-family:'DM Mono',monospace;font-size:26px;margin-bottom:2px}
+.stat-tile-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat-tile.hi{border-color:rgba(240,165,0,.3);background:rgba(240,165,0,.06)}
+.stat-tile.hi .stat-tile-val{color:var(--amber)}
+
+/* BAR CHARTS */
+.bar-chart{display:flex;align-items:flex-end;gap:5px;margin-top:10px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-bg{width:100%;background:var(--surf2);border-radius:5px 5px 0 0;position:relative;overflow:hidden}
+.bar-fill{position:absolute;bottom:0;width:100%;border-radius:5px 5px 0 0;transition:height .65s cubic-bezier(.34,1.4,.64,1)}
+.bar-lbl{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}
+
+/* SESSION LOG */
+.sess-row{display:flex;justify-content:space-between;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--border)}
+.sess-row:last-child{border-bottom:none}
+.sess-dur{font-family:'DM Mono',monospace;font-size:14px;color:var(--amber)}
+.sess-time{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.del-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
+.del-btn:active{color:var(--rose)}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--surf2);
+  border:1px solid var(--border);border-radius:50px;padding:3px 10px;font-size:11px;color:var(--muted2)}
+
+/* OVERVIEW */
+.ov-hero{background:var(--surf);border:1px solid var(--border);border-radius:24px;
+  padding:22px;margin-bottom:14px;position:relative;overflow:hidden}
+.ov-hero::before{content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;
+  border-radius:50%;background:radial-gradient(circle,rgba(240,165,0,.1) 0%,transparent 70%)}
+.hero-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
+.hero-val{font-family:'DM Mono',monospace;font-size:52px;font-weight:400;color:var(--amber);line-height:1}
+.hero-change{font-size:13px;margin-top:6px}
+.three-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.mini-tile{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:14px 10px;text-align:center}
+.mini-val{font-family:'DM Mono',monospace;font-size:18px;margin-bottom:2px}
+.mini-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.donut-row{display:flex;align-items:center;gap:18px;margin-top:10px}
+.donut-legend{flex:1;display:flex;flex-direction:column;gap:9px}
+.leg-row{display:flex;align-items:center;gap:8px}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.leg-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leg-r{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.leg-val{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted2)}
+.leg-pct{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.wk-cmp{display:flex;gap:8px}
+.wk-col{flex:1;background:var(--surf2);border-radius:16px;padding:14px;text-align:center}
+.wk-col.now{background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.25)}
+.wk-col-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.wk-col-val{font-family:'DM Mono',monospace;font-size:20px}
+.wk-col.now .wk-col-val{color:var(--amber)}
+.wk-diff{font-size:11px;margin-top:4px}
+.pos{color:var(--teal)}.neg{color:var(--rose)}
+
+/* MISC */
+.toast{position:fixed;top:calc(var(--safe-t)+12px);left:50%;
+  transform:translateX(-50%) translateY(-70px);
+  background:var(--surf2);border:1px solid var(--border2);
+  border-radius:50px;padding:10px 22px;font-size:13px;font-weight:500;
+  z-index:200;transition:transform .3s cubic-bezier(.34,1.4,.64,1);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty svg{width:44px;height:44px;stroke:currentColor;fill:none;margin-bottom:12px;opacity:.3}
+.empty p{font-size:14px;line-height:1.7}
+@keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* PERIODS */
+.period-card{background:var(--surf);border:1px solid var(--border);border-radius:20px;
+  padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;
+  transition:border-color .2s,transform .15s;-webkit-appearance:none;width:100%;
+  text-align:left;font-family:Outfit,sans-serif;color:var(--text)}
+.period-card:active{transform:scale(.98)}
+.period-card.active-period{border-color:var(--amber);background:rgba(240,165,0,.06)}
+.period-icon{width:40px;height:40px;border-radius:12px;background:var(--surf2);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.period-name{font-family:Fraunces,serif;font-size:16px;font-weight:600;margin-bottom:2px}
+.period-dates{font-size:12px;color:var(--muted2)}
+.period-check{margin-left:auto;flex-shrink:0;width:20px;height:20px;border-radius:50%;
+  background:var(--amber);display:flex;align-items:center;justify-content:center}
+.period-check svg{width:11px;height:11px;stroke:#000;fill:none;stroke-width:3}
+/* period filter pill row */
+.pf-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.pf-row::-webkit-scrollbar{display:none}
+.pf-pill{flex-shrink:0;padding:7px 14px;border-radius:50px;font-size:12px;font-weight:500;
+  border:1px solid var(--border);background:var(--surf2);color:var(--muted2);cursor:pointer;
+  transition:all .15s;white-space:nowrap;-webkit-appearance:none;font-family:Outfit,sans-serif}
+.pf-pill.on{background:rgba(240,165,0,.12);border-color:var(--amber);color:var(--amber)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view">
+
+    <!-- HOME -->
+    <div class="screen" id="screen-home">
+      <div class="screen-inner">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div class="pg-title">My Courses</div>
+          <button onclick="openModal()" style="background:var(--amber);color:#000;border:none;border-radius:14px;padding:10px 18px;font-family:Fraunces,serif;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="#000" fill="none" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New
+          </button>
+        </div>
+        <div class="pg-sub" id="home-sub">Track every hour you put in</div>
+        <div id="course-list"></div>
+        <div style="height:16px"></div>
+      </div>
+    </div>
+
+    <!-- COURSE DETAIL -->
+    <div class="screen off-right" id="screen-course">
+      <div class="screen-inner">
+        <button class="back-row" onclick="goBack()" style="background:none;border:none;display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;padding:0;color:var(--muted2)">
+          <div class="back-btn"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>
+          <span style="font-size:14px;color:var(--muted2)">All Courses</span>
+        </button>
+        <div class="course-hero">
+          <div class="hero-icon" id="ch-icon"></div>
+          <div class="hero-name" id="ch-name"></div>
+          <div class="hero-sub" id="ch-sub"></div>
+        </div>
+        <div class="timer-wrap">
+          <div class="clock" id="clock">00:00:00</div>
+          <div class="clock-sub" id="clock-sub"></div>
+        </div>
+        <div class="timer-btns">
+          <button class="t-btn t-start" id="btn-start" onclick="toggleTimer()">Start</button>
+          <button class="t-btn t-stop" id="btn-stop" onclick="stopSession()" style="display:none">Save</button>
+        </div>
+        <div style="text-align:center;margin-top:10px">
+          <button onclick="openLogModal()" style="background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:50px;padding:8px 20px;font-family:Outfit,sans-serif;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Log time manually
+          </button>
+        </div>
+        <div class="pf-row" id="c-period-pills"></div>
+        <div class="sec-label">Progress</div>
+        <div class="stat-grid" id="c-stat-grid"></div>
+        <div class="card">
+          <div class="sec-label" style="margin-top:0">Last 7 Days</div>
+          <div class="bar-chart" id="c-7d" style="height:90px"></div>
+        </div>
+        <div class="card">
+          <div class="sec-label" style="margin-top:0">8-Week Trend</div>
+          <div class="bar-chart" id="c-8w" style="height:80px"></div>
+        </div>
+        <div class="sec-label">Session History</div>
+        <div id="c-sessions"></div>
+        <div style="height:16px"></div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="screen off-right" id="screen-overview">
+      <div class="screen-inner">
+        <div class="pg-title">Overview</div>
+        <div class="pg-sub">All your work in one place</div>
+        <div class="pf-row" id="ov-period-pills"></div>
+        <div class="ov-hero">
+          <div class="hero-lbl">This Week</div>
+          <div class="hero-val" id="ov-wk"></div>
+          <div class="hero-change" id="ov-change"></div>
+        </div>
+        <div class="three-grid" id="ov-3"></div>
+        <div class="card">
+          <div class="sec-label" style="margin-top:0">Weekly Trend — 8 Weeks</div>
+          <div class="bar-chart" id="ov-trend" style="height:80px"></div>
+        </div>
+        <div class="card">
+          <div class="sec-label" style="margin-top:0">Course Breakdown</div>
+          <div class="donut-row">
+            <canvas id="donut" width="110" height="110" style="flex-shrink:0"></canvas>
+            <div class="donut-legend" id="donut-leg"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sec-label" style="margin-top:0">Week Comparison</div>
+          <div class="wk-cmp" id="wk-cmp"></div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+    </div>
+
+
+    <!-- PERIODS -->
+    <div class="screen off-right" id="screen-periods">
+      <div class="screen-inner">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div class="pg-title">Periods</div>
+          <button onclick="openPeriodModal()" style="background:var(--amber);color:#000;border:none;border-radius:14px;padding:10px 18px;font-family:Fraunces,serif;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="#000" fill="none" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New
+          </button>
+        </div>
+        <div class="pg-sub">Group sessions into named time windows</div>
+        <div id="period-list"></div>
+        <div style="height:16px"></div>
+      </div>
+    </div>
+  </div><!-- /view -->
+
+  <nav id="nav">
+    <div class="nav-row">
+      <button class="nb active" id="nb-home" onclick="navTo('home')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Courses
+      </button>
+      <button class="nb" id="nb-overview" onclick="navTo('overview')">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Overview
+      </button>
+      <button class="nb" id="nb-periods" onclick="navTo('periods')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Periods
+      </button>
+    </div>
+  </nav>
+</div>
+
+
+<div class="overlay" id="modal" onclick="maybeClose(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">New Course</div>
+    <div class="lbl">Name</div>
+    <input class="inp" id="m-name" placeholder="e.g. Organic Chemistry" maxlength="40" style="margin-bottom:16px">
+    <div class="lbl">Icon</div>
+    <div class="emoji-row" id="emoji-row"></div>
+    <div class="lbl">Color</div>
+    <div class="color-row" id="color-row"></div>
+    <button class="btn-full" onclick="saveNewCourse()">Add Course</button>
+    <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+
+
+<!-- Period Modal -->
+<div class="overlay" id="period-modal" onclick="maybeClosePeriod(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" id="pm-title">New Period</div>
+    <div class="lbl">Name</div>
+    <input class="inp" id="pm-name" placeholder="e.g. Fall Semester 2025" maxlength="50" style="margin-bottom:14px">
+    <div style="display:flex;gap:10px;margin-bottom:6px">
+      <div style="flex:1">
+        <div class="lbl">Start Date</div>
+        <input class="inp" type="date" id="pm-start">
+      </div>
+      <div style="flex:1">
+        <div class="lbl">End Date <span style="color:var(--muted);font-size:11px">(optional)</span></div>
+        <input class="inp" type="date" id="pm-end">
+      </div>
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 0">
+        <input type="checkbox" id="pm-ongoing" onchange="toggleOngoing()" style="width:16px;height:16px;accent-color:var(--amber)">
+        <span style="font-size:14px;color:var(--muted2)">Ongoing (no end date)</span>
+      </label>
+    </div>
+    <div class="lbl">Icon</div>
+    <div class="emoji-row" id="period-emoji-row"></div>
+    <button class="btn-full" id="pm-save-btn" onclick="savePeriod()">Add Period</button>
+    <button class="btn-ghost" onclick="closePeriodModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- Log Time Modal -->
+<div class="overlay" id="log-modal" onclick="maybeCloseLog(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">Log Time</div>
+    <div style="color:var(--muted2);font-size:13px;margin-bottom:18px;margin-top:-8px">Add a session you forgot to track</div>
+    <div class="lbl">Date</div>
+    <input class="inp" type="date" id="log-date" style="margin-bottom:14px">
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <div style="flex:1">
+        <div class="lbl">Start Time</div>
+        <input class="inp" type="time" id="log-start">
+      </div>
+      <div style="flex:1">
+        <div class="lbl">End Time</div>
+        <input class="inp" type="time" id="log-end">
+      </div>
+    </div>
+    <div id="log-preview" style="text-align:center;font-family:DM Mono,monospace;font-size:22px;color:var(--amber);margin-bottom:18px;min-height:30px"></div>
+    <button class="btn-full" onclick="saveLoggedTime()">Save Session</button>
+    <button class="btn-ghost" onclick="closeLogModal()">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── CONSTANTS ─── */
+const COLORS=['#f0a500','#00c896','#ff5c7a','#7c6bfa','#38bdf8','#fb923c','#a3e635','#f472b6','#06b6d4','#e879f9'];
+const EMOJIS=['📚','🧪','🔬','💻','🎨','📝','🧮','🎵','🌍','⚡','🏛','🧠','📐','🔭','📊','🏋️','🎯','🌱'];
+
+/* ─── STATE ─── */
+let S = loadState();
+let activePeriodId = null; // null = All Time
+let editingPeriodId = null;
+let newPeriodEmoji = "📅";
+let timerInt=null, elapsed=0, running=false, paused=false;
+let activeCid=null, curScreen='home';
+let newColor=COLORS[0], newEmoji=EMOJIS[0];
+
+function loadState(){
+  try{const s=localStorage.getItem('ft_v2');if(s)return JSON.parse(s);}catch(e){}
+  return{courses:[],sessions:[],periods:[]};
+}
+function ensurePeriods(){ if(!S.periods) S.periods=[]; }
+function save(){localStorage.setItem('ft_v2',JSON.stringify(S));}
+
+/* ─── NAV ─── */
+function navTo(name){
+  if(running){/* keep timer running, just switch view */}
+  curScreen=name;
+  const id='screen-'+name;
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('off-left','off-right');
+    if(s.id!==id) s.classList.add('off-right');
+  });
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nb-'+name).classList.add('active');
+  
+  if(name==='overview') renderOverview();
+  if(name==='home') renderHome();
+  if(name==='periods') renderPeriods();
+}
+
+function openCourse(id){
+  activeCid=id; curScreen='course';
+  renderCourse();
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('off-left','off-right');
+    if(s.id!=='screen-course') s.classList.add('off-left');
+  });
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  
+  document.getElementById('screen-course').scrollTop=0;
+}
+
+function goBack(){
+  if(running||paused) stopSession();
+  curScreen='home';
+  activeCid=null;
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('off-left','off-right');
+    if(s.id!=='screen-home') s.classList.add('off-right');
+  });
+  document.getElementById('nb-home').classList.add('active');
+  
+  renderHome();
+}
+
+/* ─── HOME ─── */
+function renderHome(){
+  const el=document.getElementById('course-list');
+  const wkSec=weekSecs(null,0);
+  const h=Math.floor(wkSec/3600),m=Math.floor((wkSec%3600)/60);
+  document.getElementById('home-sub').textContent=
+    S.courses.length ? `${h}h ${m}m this week${activePeriodId?(' · '+esc(S.periods.find(p=>p.id===activePeriodId)?.name||'')):''}` : 'Add a course to start tracking';
+
+  if(!S.courses.length){
+    el.innerHTML=`<div class="empty">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <p>No courses yet.<br>Tap <strong>+</strong> to add your first one.</p></div>`;
+    return;
+  }
+
+  el.innerHTML=S.courses.map(c=>{
+    const wk=weekSecs(c.id,0), all=allSecs(c.id), td=todaySecs(c.id);
+    const sp=last7(c.id), mx=Math.max(...sp.map(d=>d.s),1);
+    const sparkHtml=sp.map(d=>{
+      const h=Math.max((d.s/mx)*100,d.s>0?10:3);
+      return `<div class="spark-bar" style="height:${h}%;background:${d.s?c.color+'aa':c.color+'22'}"></div>`;
+    }).join('');
+    const active=running&&activeCid===c.id;
+    return `<button class="course-card" onclick="openCourse('${c.id}')">
+      <div class="cc-top" style="background:${c.color}"></div>
+      <div class="cc-body">
+        <div class="cc-header">
+          <div class="cc-icon" style="background:${c.color}22">${c.emoji}</div>
+          <div>
+            <div class="cc-name">${esc(c.name)}</div>
+            <div class="cc-meta">${allSecs2str(all)} total · ${S.sessions.filter(s=>s.cid===c.id).length} sessions</div>
+            ${active?'<div class="running-badge" style="margin-top:5px"><span class="rdot"></span>Running now</div>':''}
+          </div>
+        </div>
+      </div>
+      <div class="sparkline">${sparkHtml}</div>
+      <div class="cc-stats">
+        <div class="cc-stat">
+          <div class="cc-stat-val" style="color:${c.color}">${fmtHM(wk)}</div>
+          <div class="cc-stat-lbl">This Week</div>
+        </div>
+        <div class="cc-stat" style="padding-left:14px">
+          <div class="cc-stat-val">${fmtHM(td)}</div>
+          <div class="cc-stat-lbl">Today</div>
+        </div>
+      </div>
+    </button>`;
+  }).join('');
+}
+
+/* ─── MODAL ─── */
+function openModal(){
+  document.getElementById('m-name').value='';
+  newColor=COLORS[0]; newEmoji=EMOJIS[0];
+  buildPickers();
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('m-name').focus(),380);
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function maybeClose(e){if(e.target===document.getElementById('modal'))closeModal();}
+function buildPickers(){
+  document.getElementById('emoji-row').innerHTML=EMOJIS.map(e=>
+    `<div class="emoji-opt${e===newEmoji?' on':''}" onclick="pickE('${e}')">${e}</div>`).join('');
+  document.getElementById('color-row').innerHTML=COLORS.map(c=>
+    `<div class="c-dot${c===newColor?' on':''}" style="background:${c}" onclick="pickC('${c}')"></div>`).join('');
+}
+function pickE(e){newEmoji=e;buildPickers();}
+function pickC(c){newColor=c;buildPickers();}
+function saveNewCourse(){
+  const name=document.getElementById('m-name').value.trim();
+  if(!name){toast('Enter a course name');return;}
+  S.courses.push({id:'c'+Date.now(),name,emoji:newEmoji,color:newColor});
+  save(); closeModal(); renderHome(); toast('Course added!');
+}
+
+/* ─── COURSE DETAIL ─── */
+function renderCourse(){
+  const c=S.courses.find(x=>x.id===activeCid); if(!c)return;
+  document.getElementById('ch-icon').style.background=c.color+'22';
+  document.getElementById('ch-icon').textContent=c.emoji;
+  document.getElementById('ch-name').textContent=c.name;
+  const sess=S.sessions.filter(s=>s.cid===c.id);
+  const all=sess.reduce((a,s)=>a+s.dur,0);
+  document.getElementById('ch-sub').textContent=
+    sess.length?`${sess.length} sessions · ${allSecs2str(all)}`:'No sessions yet';
+
+  // Timer state
+  const myTimer=running&&activeCid===c.id;
+  const myPause=paused&&activeCid===c.id;
+  if(!myTimer&&!myPause){
+    document.getElementById('clock').textContent='00:00:00';
+    document.getElementById('clock').classList.remove('running');
+    document.getElementById('btn-start').textContent='Start';
+    document.getElementById('btn-stop').style.display='none';
+    elapsed=0;
+  } else if(myPause){
+    document.getElementById('clock').textContent=fmtClock(elapsed);
+    document.getElementById('btn-start').textContent='Resume';
+    document.getElementById('btn-stop').style.display='inline-block';
+  } else if(myTimer){
+    document.getElementById('clock').textContent=fmtClock(elapsed);
+    document.getElementById('clock').classList.add('running');
+    document.getElementById('btn-start').textContent='Pause';
+    document.getElementById('btn-stop').style.display='inline-block';
+  }
+
+  // Stats
+  const wk=weekSecs(c.id,0), td=todaySecs(c.id);
+  const avg=avgWeek(c.id);
+  document.getElementById('c-stat-grid').innerHTML=`
+    <div class="stat-tile hi">
+      <div class="stat-tile-val">${fmtHM(wk)}</div><div class="stat-tile-lbl">This Week</div></div>
+    <div class="stat-tile">
+      <div class="stat-tile-val">${fmtHM(td)}</div><div class="stat-tile-lbl">Today</div></div>
+    <div class="stat-tile">
+      <div class="stat-tile-val">${fmtHM(all)}</div><div class="stat-tile-lbl">All Time</div></div>
+    <div class="stat-tile">
+      <div class="stat-tile-val">${fmtHM(avg)}</div><div class="stat-tile-lbl">Avg/Week</div></div>`;
+
+  // 7-day chart
+  const days=last7(c.id), mx7=Math.max(...days.map(d=>d.s),1);
+  document.getElementById('c-7d').innerHTML=days.map(d=>{
+    const pct=(d.s/mx7)*100;
+    const isToday=d.date.toDateString()===new Date().toDateString();
+    return `<div class="bar-wrap" style="height:100%">
+      <div class="bar-bg" style="width:100%;flex:1">
+        <div class="bar-fill" style="height:${pct}%;background:${isToday?c.color:c.color+'77'}"></div>
+      </div>
+      <div class="bar-lbl" style="${isToday?'color:'+c.color:''}">${d.lbl}</div>
+    </div>`;
+  }).join('');
+
+  // 8-week
+  const wks=last8weeks(c.id), mxw=Math.max(...wks.map(w=>w.s),1);
+  document.getElementById('c-8w').innerHTML=wks.map((w,i)=>{
+    const pct=(w.s/mxw)*100, cur=i===wks.length-1;
+    return `<div class="bar-wrap" style="height:100%">
+      <div class="bar-bg" style="width:100%;flex:1">
+        <div class="bar-fill" style="height:${pct}%;background:${cur?c.color:c.color+'44'}"></div>
+      </div>
+      <div class="bar-lbl" style="${cur?'color:'+c.color:''}">${w.lbl}</div>
+    </div>`;
+  }).join('');
+
+  renderPeriodPills();
+  renderSessions(c);
+}
+
+function renderSessions(c){
+  const sessions=S.sessions.filter(s=>s.cid===c.id).sort((a,b)=>b.start-a.start).slice(0,40);
+  const el=document.getElementById('c-sessions');
+  if(!sessions.length){
+    el.innerHTML='<div class="empty" style="padding:20px 0"><p>Start a session to see your log here.</p></div>';
+    return;
+  }
+  const groups={};
+  sessions.forEach(s=>{
+    const k=new Date(s.start).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    if(!groups[k])groups[k]=[];
+    groups[k].push(s);
+  });
+  el.innerHTML=Object.entries(groups).map(([date,ss])=>{
+    const dt=ss.reduce((a,s)=>a+s.dur,0);
+    return `<div class="card" style="padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:'Fraunces',serif;font-weight:600;font-size:14px">${date}</div>
+        <div class="pill">${fmtHM(dt)} total</div>
+      </div>
+      ${ss.map(s=>{
+        const t=new Date(s.start).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+        return `<div class="sess-row">
+          <div>
+            <div style="font-size:14px;font-weight:500">${fmtHMS(s.dur)}</div>
+            <div class="sess-time">${t}${s.manual?' · <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em">manual</span>':''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="sess-dur">${fmtHMS(s.dur)}</div>
+            <button class="del-btn" onclick="delSess('${s.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function delSess(id){
+  S.sessions=S.sessions.filter(s=>s.id!==id);
+  save();
+  if(curScreen==='course'){
+    const c=S.courses.find(x=>x.id===activeCid);
+    if(c)renderSessions(c);
+    renderCourse();
+  }
+}
+
+/* ─── TIMER ─── */
+// Persist timer across page reloads using localStorage
+// We store {cid, startTime, pausedElapsed} so closing/reopening works
+function saveTimerState(){
+  if(running){
+    localStorage.setItem('ft_timer', JSON.stringify({cid:activeCid, startTime: Date.now()-elapsed*1000, paused:false}));
+  } else if(paused){
+    localStorage.setItem('ft_timer', JSON.stringify({cid:activeCid, startTime: null, pausedElapsed: elapsed, paused:true}));
+  } else {
+    localStorage.removeItem('ft_timer');
+  }
+}
+
+function loadTimerState(){
+  try{
+    const raw = localStorage.getItem('ft_timer');
+    if(!raw) return;
+    const t = JSON.parse(raw);
+    // Make sure the course still exists
+    if(!S.courses.find(c=>c.id===t.cid)) { localStorage.removeItem('ft_timer'); return; }
+    activeCid = t.cid;
+    if(t.paused){
+      elapsed = t.pausedElapsed||0;
+      paused = true; running = false;
+    } else {
+      // Running: calculate how much time has passed since start
+      elapsed = Math.floor((Date.now() - t.startTime) / 1000);
+      paused = false; running = false; // will kick off via startRunning()
+      startRunning();
+    }
+  } catch(e){ localStorage.removeItem('ft_timer'); }
+}
+
+function startRunning(){
+  running=true; paused=false;
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    elapsed++;
+    const clk=document.getElementById('clock');
+    if(clk) clk.textContent=fmtClock(elapsed);
+  },1000);
+  saveTimerState();
+}
+
+function toggleTimer(){
+  if(!activeCid) return;
+  if(running){
+    clearInterval(timerInt); running=false; paused=true;
+    document.getElementById('btn-start').textContent='Resume';
+    document.getElementById('clock').classList.remove('running');
+    document.getElementById('clock-sub').textContent='Paused — tap Resume';
+    saveTimerState();
+  } else {
+    startRunning();
+    document.getElementById('btn-stop').style.display='inline-block';
+    document.getElementById('clock').classList.add('running');
+    document.getElementById('btn-start').textContent='Pause';
+    document.getElementById('clock-sub').textContent='';
+  }
+}
+
+function stopSession(){
+  clearInterval(timerInt);
+  if(elapsed>=1){
+    const end=Date.now();
+    S.sessions.push({id:'s'+end,cid:activeCid,start:end-elapsed*1000,end,dur:elapsed});
+    save(); toast(`Saved: ${fmtHMS(elapsed)}`);
+  }
+  localStorage.removeItem('ft_timer');
+  resetTimer();
+  renderCourse();
+}
+
+function resetTimer(){
+  clearInterval(timerInt); running=false; paused=false; elapsed=0;
+  const clk=document.getElementById('clock');
+  if(clk){ clk.textContent='00:00:00'; clk.classList.remove('running'); }
+  const sub=document.getElementById('clock-sub');
+  if(sub) sub.textContent='';
+  const bs=document.getElementById('btn-start');
+  if(bs) bs.textContent='Start';
+  const bst=document.getElementById('btn-stop');
+  if(bst) bst.style.display='none';
+  saveTimerState();
+}
+
+/* ─── OVERVIEW ─── */
+function renderOverview(){
+  ensurePeriods(); renderPeriodPills();
+  const tw=weekSecs(null,0), lw=weekSecs(null,1), p2=weekSecs(null,2);
+  const all=S.sessions.reduce((a,s)=>a+s.dur,0);
+  const td=todaySecs(null);
+  const diff=tw-lw;
+
+  document.getElementById('ov-wk').textContent=fmtHM(tw);
+  const changeEl=document.getElementById('ov-change');
+  if(diff===0){ changeEl.textContent='Same as last week'; changeEl.className='hero-change'; }
+  else {
+    changeEl.textContent=(diff>0?`+${fmtHM(Math.abs(diff))}`:`-${fmtHM(Math.abs(diff))}`)+' vs last week';
+    changeEl.className='hero-change '+(diff>0?'pos':'neg');
+  }
+
+  document.getElementById('ov-3').innerHTML=`
+    <div class="mini-tile"><div class="mini-val">${fmtHM(td)}</div><div class="mini-lbl">Today</div></div>
+    <div class="mini-tile"><div class="mini-val">${fmtHM(lw)}</div><div class="mini-lbl">Last Wk</div></div>
+    <div class="mini-tile"><div class="mini-val">${fmtHM(all)}</div><div class="mini-lbl">All Time</div></div>`;
+
+  // 8-week global
+  const wks=last8weeks(null), mxw=Math.max(...wks.map(w=>w.s),1);
+  document.getElementById('ov-trend').innerHTML=wks.map((w,i)=>{
+    const pct=(w.s/mxw)*100, cur=i===wks.length-1;
+    return `<div class="bar-wrap" style="height:100%">
+      <div class="bar-bg" style="width:100%;flex:1">
+        <div class="bar-fill" style="height:${pct}%;background:${cur?'var(--amber)':'rgba(240,165,0,.4)'}"></div>
+      </div>
+      <div class="bar-lbl" style="${cur?'color:var(--amber)':''}">${w.lbl}</div>
+    </div>`;
+  }).join('');
+
+  renderDonut();
+
+  document.getElementById('wk-cmp').innerHTML=`
+    <div class="wk-col"><div class="wk-col-lbl">2 Wks Ago</div><div class="wk-col-val">${fmtHM(p2)}</div></div>
+    <div class="wk-col"><div class="wk-col-lbl">Last Week</div><div class="wk-col-val">${fmtHM(lw)}</div></div>
+    <div class="wk-col now">
+      <div class="wk-col-lbl">This Week</div>
+      <div class="wk-col-val">${fmtHM(tw)}</div>
+      <div class="wk-diff ${diff>=0?'pos':'neg'}">${diff===0?'—':(diff>0?'+':'-')+fmtHM(Math.abs(diff))}</div>
+    </div>`;
+}
+
+function renderDonut(){
+  const canvas=document.getElementById('donut');
+  const ctx=canvas.getContext('2d');
+  const Z=110; canvas.width=Z; canvas.height=Z;
+  ctx.clearRect(0,0,Z,Z);
+  const entries=S.courses.map(c=>({
+    name:c.name,color:c.color,
+    s:filteredSessions(c.id).reduce((a,x)=>a+x.dur,0)
+  })).filter(e=>e.s>0).sort((a,b)=>b.s-a.s);
+  const total=entries.reduce((a,e)=>a+e.s,0)||1;
+  const cx=Z/2,cy=Z/2,r=44,inn=27;
+  if(!entries.length){
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.strokeStyle='#191c24';ctx.lineWidth=18;ctx.stroke();
+    document.getElementById('donut-leg').innerHTML='<div style="color:var(--muted);font-size:13px">No data yet</div>';
+    return;
+  }
+  let angle=-Math.PI/2;
+  entries.forEach(e=>{
+    const slice=(e.s/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath();ctx.fillStyle=e.color;ctx.fill();
+    angle+=slice;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,inn,0,Math.PI*2);
+  ctx.fillStyle='#111318';ctx.fill();
+  document.getElementById('donut-leg').innerHTML=entries.slice(0,6).map(e=>`
+    <div class="leg-row">
+      <div class="leg-dot" style="background:${e.color}"></div>
+      <div class="leg-name">${esc(e.name)}</div>
+      <div class="leg-r">
+        <div class="leg-val">${fmtHM(e.s)}</div>
+        <div class="leg-pct">${Math.round(e.s/total*100)}%</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ─── DATA HELPERS ─── */
+function wkStart(off=0){
+  const d=new Date();d.setHours(0,0,0,0);
+  d.setDate(d.getDate()-d.getDay()-off*7);
+  return d.getTime();
+}
+function weekSecs(cid,off){
+  const ws=wkStart(off),we=wkStart(off-1);
+  return filteredSessions(cid).filter(s=>s.start>=ws&&s.start<we).reduce((a,s)=>a+s.dur,0);
+}
+function allSecs(cid){return filteredSessions(cid).reduce((a,s)=>a+s.dur,0);}
+function todaySecs(cid){
+  const d=new Date();d.setHours(0,0,0,0);
+  return filteredSessions(cid).filter(s=>s.start>=d.getTime()).reduce((a,s)=>a+s.dur,0);
+}
+function avgWeek(cid){
+  const wks=last8weeks(cid).filter(w=>w.s>0);
+  return wks.length?Math.round(wks.reduce((a,w)=>a+w.s,0)/wks.length):0;
+}
+function last7(cid){
+  const out=[], base=filteredSessions(cid);
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);
+    const n=new Date(d);n.setDate(n.getDate()+1);
+    const s=base.filter(x=>x.start>=d.getTime()&&x.start<n.getTime()).reduce((a,x)=>a+x.dur,0);
+    out.push({lbl:['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()],date:new Date(d),s});
+  }
+  return out;
+}
+function last8weeks(cid){
+  const out=[], base=filteredSessions(cid);
+  for(let i=7;i>=0;i--){
+    const ws=wkStart(i),we=wkStart(i-1);
+    const s=base.filter(x=>x.start>=ws&&x.start<we).reduce((a,x)=>a+x.dur,0);
+    out.push({lbl:i===0?'now':`W${8-i}`,s});
+  }
+  return out;
+}
+
+/* ─── FORMAT ─── */
+function fmtClock(s){const h=~~(s/3600),m=~~((s%3600)/60),sc=s%60;return`${p(h)}:${p(m)}:${p(sc)}`;}
+function fmtHMS(s){const h=~~(s/3600),m=~~((s%3600)/60),sc=s%60;if(h)return`${h}h ${p(m)}m ${p(sc)}s`;if(m)return`${m}m ${p(sc)}s`;return`${sc}s`;}
+function fmtHM(s){const h=~~(s/3600),m=~~((s%3600)/60);if(h)return`${h}h ${m}m`;return`${m}m`;}
+function allSecs2str(s){const h=~~(s/3600),m=~~((s%3600)/60);if(h)return`${h}h ${m}m`;return`${m}m`;}
+function p(n){return String(n).padStart(2,'0');}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+
+/* ─── LOG TIME MANUALLY ─── */
+function openLogModal(){
+  // Default: today, 8pm-10pm
+  const now = new Date();
+  const y = now.getFullYear(), mo = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+  document.getElementById('log-date').value = `${y}-${mo}-${d}`;
+  document.getElementById('log-date').max = `${y}-${mo}-${d}`;
+  document.getElementById('log-start').value = '20:00';
+  document.getElementById('log-end').value = '22:00';
+  updateLogPreview();
+  document.getElementById('log-modal').classList.add('open');
+  // Live preview on change
+  ['log-date','log-start','log-end'].forEach(id =>
+    document.getElementById(id).oninput = updateLogPreview
+  );
+}
+function closeLogModal(){ document.getElementById('log-modal').classList.remove('open'); }
+function maybeCloseLog(e){ if(e.target===document.getElementById('log-modal')) closeLogModal(); }
+
+function updateLogPreview(){
+  const dateVal = document.getElementById('log-date').value;
+  const startVal = document.getElementById('log-start').value;
+  const endVal = document.getElementById('log-end').value;
+  const el = document.getElementById('log-preview');
+  if(!dateVal||!startVal||!endVal){ el.textContent=''; return; }
+  const start = new Date(dateVal+'T'+startVal);
+  const end   = new Date(dateVal+'T'+endVal);
+  let dur = Math.round((end-start)/1000);
+  if(dur<=0){ el.innerHTML='<span style="color:var(--rose);font-size:14px">End must be after start</span>'; return; }
+  el.textContent = fmtHMS(dur);
+}
+
+function saveLoggedTime(){
+  const dateVal = document.getElementById('log-date').value;
+  const startVal = document.getElementById('log-start').value;
+  const endVal = document.getElementById('log-end').value;
+  if(!dateVal||!startVal||!endVal){ toast('Fill in all fields'); return; }
+  const start = new Date(dateVal+'T'+startVal);
+  const end   = new Date(dateVal+'T'+endVal);
+  const dur = Math.round((end-start)/1000);
+  if(dur<=0){ toast('End time must be after start'); return; }
+  S.sessions.push({id:'s'+Date.now(),cid:activeCid,start:start.getTime(),end:end.getTime(),dur,manual:true});
+  save();
+  closeLogModal();
+  toast(`Logged: ${fmtHMS(dur)}`);
+  renderCourse();
+}
+
+
+/* ─── PERIODS ─── */
+const PERIOD_EMOJIS=['📅','📆','🎓','🏫','☀️','❄️','🍂','🌸','🏋️','🎯','📖','🔬','💻','🎨','🌍'];
+
+function renderPeriods(){
+  ensurePeriods();
+  const el=document.getElementById('period-list');
+  if(!S.periods.length){
+    el.innerHTML=`<div class="empty">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <p>No periods yet.<br>Create one to group your sessions<br>by semester, project, or any time range.</p></div>`;
+    return;
+  }
+  el.innerHTML=S.periods.map(p=>{
+    const isActive=activePeriodId===p.id;
+    const totalSec=getSecsInPeriod(null,p);
+    const startStr=new Date(p.start).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const endStr=p.ongoing?'Ongoing':new Date(p.end).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    return `<div style="position:relative">
+      <button class="period-card${isActive?' active-period':''}" onclick="setActivePeriod('${p.id}')">
+        <div class="period-icon">${p.emoji}</div>
+        <div style="flex:1;min-width:0">
+          <div class="period-name">${esc(p.name)}</div>
+          <div class="period-dates">${startStr} → ${endStr}</div>
+          <div style="font-family:DM Mono,monospace;font-size:13px;color:var(--amber);margin-top:3px">${fmtHM(totalSec)}</div>
+        </div>
+        ${isActive?`<div class="period-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>`:''}
+      </button>
+      <div style="display:flex;gap:6px;padding:0 0 10px 0;margin-top:-4px">
+        <button onclick="editPeriod('${p.id}')" style="flex:1;background:var(--surf2);border:1px solid var(--border);color:var(--muted2);border-radius:10px;padding:8px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">Edit</button>
+        <button onclick="deletePeriod('${p.id}')" style="flex:1;background:var(--surf2);border:1px solid var(--border);color:var(--rose);border-radius:10px;padding:8px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setActivePeriod(id){
+  activePeriodId=(activePeriodId===id)?null:id;
+  renderPeriods();
+  renderPeriodPills();
+  // re-render whichever stats screen is visible
+  if(curScreen==='overview') renderOverview();
+  if(curScreen==='course') renderCourse();
+  const p=S.periods.find(x=>x.id===id);
+  toast(activePeriodId ? `Filtering: ${p?p.name:''}` : 'Showing all time');
+}
+
+function renderPeriodPills(){
+  ensurePeriods();
+  ['ov-period-pills','c-period-pills'].forEach(elId=>{
+    const el=document.getElementById(elId); if(!el) return;
+    if(!S.periods.length){ el.innerHTML=''; return; }
+    el.innerHTML=
+      `<button class="pf-pill${!activePeriodId?' on':''}" onclick="setActivePeriod_clear()">All Time</button>`+
+      S.periods.map(p=>
+        `<button class="pf-pill${activePeriodId===p.id?' on':''}" onclick="setActivePeriod('${p.id}')">${p.emoji} ${esc(p.name)}</button>`
+      ).join('');
+  });
+}
+
+function setActivePeriod_clear(){
+  activePeriodId=null;
+  renderPeriodPills();
+  if(curScreen==='overview') renderOverview();
+  if(curScreen==='course') renderCourse();
+}
+
+function openPeriodModal(id=null){
+  ensurePeriods();
+  editingPeriodId=id;
+  newPeriodEmoji=id ? S.periods.find(p=>p.id===id)?.emoji||'📅' : '📅';
+  if(id){
+    const p=S.periods.find(x=>x.id===id);
+    document.getElementById('pm-title').textContent='Edit Period';
+    document.getElementById('pm-name').value=p.name;
+    document.getElementById('pm-start').value=p.start;
+    document.getElementById('pm-end').value=p.ongoing?'':p.end;
+    document.getElementById('pm-ongoing').checked=!!p.ongoing;
+    document.getElementById('pm-end').disabled=!!p.ongoing;
+    document.getElementById('pm-save-btn').textContent='Save Changes';
+  } else {
+    document.getElementById('pm-title').textContent='New Period';
+    document.getElementById('pm-name').value='';
+    const today=new Date().toISOString().split('T')[0];
+    document.getElementById('pm-start').value=today;
+    document.getElementById('pm-end').value='';
+    document.getElementById('pm-ongoing').checked=false;
+    document.getElementById('pm-end').disabled=false;
+    document.getElementById('pm-save-btn').textContent='Add Period';
+  }
+  buildPeriodEmojiPicker();
+  document.getElementById('period-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('pm-name').focus(),380);
+}
+
+function editPeriod(id){ openPeriodModal(id); }
+
+function closePeriodModal(){ document.getElementById('period-modal').classList.remove('open'); editingPeriodId=null; }
+function maybeClosePeriod(e){ if(e.target===document.getElementById('period-modal')) closePeriodModal(); }
+
+function toggleOngoing(){
+  const on=document.getElementById('pm-ongoing').checked;
+  document.getElementById('pm-end').disabled=on;
+  if(on) document.getElementById('pm-end').value='';
+}
+
+function buildPeriodEmojiPicker(){
+  document.getElementById('period-emoji-row').innerHTML=PERIOD_EMOJIS.map(e=>
+    `<div class="emoji-opt${e===newPeriodEmoji?' on':''}" onclick="pickPeriodEmoji('${e}')">${e}</div>`
+  ).join('');
+}
+function pickPeriodEmoji(e){ newPeriodEmoji=e; buildPeriodEmojiPicker(); }
+
+function savePeriod(){
+  const name=document.getElementById('pm-name').value.trim();
+  const start=document.getElementById('pm-start').value;
+  const ongoing=document.getElementById('pm-ongoing').checked;
+  const end=document.getElementById('pm-end').value;
+  if(!name){ toast('Enter a period name'); return; }
+  if(!start){ toast('Choose a start date'); return; }
+  if(!ongoing && !end){ toast('Choose an end date or mark as ongoing'); return; }
+  if(!ongoing && end && end<start){ toast('End date must be after start'); return; }
+
+  if(editingPeriodId){
+    const p=S.periods.find(x=>x.id===editingPeriodId);
+    Object.assign(p,{name,emoji:newPeriodEmoji,start,end:ongoing?'':end,ongoing});
+    toast('Period updated!');
+  } else {
+    S.periods.push({id:'p'+Date.now(),name,emoji:newPeriodEmoji,start,end:ongoing?'':end,ongoing});
+    toast('Period added!');
+  }
+  save(); closePeriodModal(); renderPeriods(); renderPeriodPills();
+}
+
+function deletePeriod(id){
+  if(activePeriodId===id) activePeriodId=null;
+  S.periods=S.periods.filter(p=>p.id!==id);
+  save(); renderPeriods(); renderPeriodPills();
+  toast('Period deleted');
+}
+
+function getSecsInPeriod(cid, period){
+  if(!period) return allSecs(cid);
+  const start=new Date(period.start).setHours(0,0,0,0);
+  const end=period.ongoing ? Date.now() : new Date(period.end).setHours(23,59,59,999);
+  return S.sessions
+    .filter(s=>(!cid||s.cid===cid) && s.start>=start && s.start<=end)
+    .reduce((a,s)=>a+s.dur,0);
+}
+
+// Helper: get sessions filtered by active period (and optionally course)
+function filteredSessions(cid){
+  ensurePeriods();
+  let sess=S.sessions;
+  if(cid) sess=sess.filter(s=>s.cid===cid);
+  if(activePeriodId){
+    const p=S.periods.find(x=>x.id===activePeriodId);
+    if(p){
+      const start=new Date(p.start).setHours(0,0,0,0);
+      const end=p.ongoing?Date.now():new Date(p.end).setHours(23,59,59,999);
+      sess=sess.filter(s=>s.start>=start && s.start<=end);
+    }
+  }
+  return sess;
+}
+
+/* ─── INIT ─── */
+ensurePeriods();
+loadTimerState();  // restore any running/paused timer from before page reload
+renderHome();
+// If a timer was running when we left, open that course automatically
+if((running||paused) && activeCid){
+  openCourse(activeCid);
+}
+</script>
+</body>
+</html>
