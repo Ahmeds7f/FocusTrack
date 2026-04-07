@@ -188,12 +188,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 .pos{color:var(--teal)}.neg{color:var(--rose)}
 
 /* MISC */
-.toast{position:fixed;top:calc(var(--safe-t)+12px);left:50%;
-  transform:translateX(-50%) translateY(-70px);
-  background:var(--surf2);border:1px solid var(--border2);
-  border-radius:50px;padding:10px 22px;font-size:13px;font-weight:500;
-  z-index:200;transition:transform .3s cubic-bezier(.34,1.4,.64,1);white-space:nowrap}
-.toast.show{transform:translateX(-50%) translateY(0)}
+
 .empty{text-align:center;padding:48px 20px;color:var(--muted)}
 .empty svg{width:44px;height:44px;stroke:currentColor;fill:none;margin-bottom:12px;opacity:.3}
 .empty p{font-size:14px;line-height:1.7}
@@ -269,7 +264,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
           </button>
         </div>
         <div class="pf-row" id="c-period-pills"></div>
-        <div class="sec-label">Progress</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;margin-top:22px">
+          <div class="sec-label" style="margin:0">Progress</div>
+          <button onclick="openStatsSettings()" style="background:var(--surf2);border:1px solid var(--border);color:var(--muted2);border-radius:10px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif;display:flex;align-items:center;gap:5px">
+            <svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+            Customise
+          </button>
+        </div>
         <div class="stat-grid" id="c-stat-grid"></div>
         <div class="card">
           <div class="sec-label" style="margin-top:0">Last 7 Days</div>
@@ -360,6 +361,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
     <div class="lbl">Name</div>
     <input class="inp" id="m-name" placeholder="e.g. Organic Chemistry" maxlength="40" style="margin-bottom:16px">
     <div class="lbl">Icon</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <input id="emoji-custom" maxlength="4" placeholder="✏️" style="width:54px;height:44px;text-align:center;font-size:24px;background:var(--surf2);border:1px solid var(--border);border-radius:12px;color:var(--text);outline:none;cursor:text" oninput="onCustomEmoji(this.value)">
+      <span style="font-size:12px;color:var(--muted2)">Type any emoji, or pick one below</span>
+    </div>
     <div class="emoji-row" id="emoji-row"></div>
     <div class="lbl">Color</div>
     <div class="color-row" id="color-row"></div>
@@ -369,6 +374,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
 </div>
 
 
+
+
+<!-- Edit Course Modal -->
+<div class="overlay" id="edit-course-modal" onclick="maybeCloseEdit(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">Edit Course</div>
+    <div class="lbl">Name</div>
+    <input class="inp" id="ec-name" placeholder="Course name" maxlength="40" style="margin-bottom:16px">
+    <div class="lbl">Icon</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <input id="ec-emoji-custom" maxlength="4" style="width:54px;height:44px;text-align:center;font-size:24px;background:var(--surf2);border:1px solid var(--border);border-radius:12px;color:var(--text);outline:none" oninput="onCustomEmojiEdit(this.value)">
+      <span style="font-size:12px;color:var(--muted2)">Type any emoji, or pick below</span>
+    </div>
+    <div class="emoji-row" id="ec-emoji-row"></div>
+    <div class="lbl">Color</div>
+    <div class="color-row" id="ec-color-row"></div>
+    <button class="btn-full" onclick="saveEditCourse()">Save Changes</button>
+    <button class="btn-ghost" onclick="closeEditCourse()">Cancel</button>
+  </div>
+</div>
+
+<!-- Stats Visibility Modal -->
+<div class="overlay" id="stats-modal" onclick="maybeCloseStats(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">Customise Stats</div>
+    <div style="color:var(--muted2);font-size:13px;margin-bottom:18px;margin-top:-8px">Choose which sections to show</div>
+    <div id="stats-toggles"></div>
+    <button class="btn-full" onclick="saveStatsSettings()">Done</button>
+  </div>
+</div>
 
 <!-- Period Modal -->
 <div class="overlay" id="period-modal" onclick="maybeClosePeriod(event)">
@@ -424,7 +461,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
 
 <script>
 /* ─── CONSTANTS ─── */
@@ -512,30 +548,36 @@ function renderHome(){
       return `<div class="spark-bar" style="height:${h}%;background:${d.s?c.color+'aa':c.color+'22'}"></div>`;
     }).join('');
     const active=running&&activeCid===c.id;
-    return `<button class="course-card" onclick="openCourse('${c.id}')">
-      <div class="cc-top" style="background:${c.color}"></div>
-      <div class="cc-body">
-        <div class="cc-header">
-          <div class="cc-icon" style="background:${c.color}22">${c.emoji}</div>
-          <div>
-            <div class="cc-name">${esc(c.name)}</div>
-            <div class="cc-meta">${allSecs2str(all)} total · ${S.sessions.filter(s=>s.cid===c.id).length} sessions</div>
-            ${active?'<div class="running-badge" style="margin-top:5px"><span class="rdot"></span>Running now</div>':''}
+    return `<div style="position:relative;margin-bottom:12px">
+      <button class="course-card" style="margin-bottom:0" onclick="openCourse('${c.id}')">
+        <div class="cc-top" style="background:${c.color}"></div>
+        <div class="cc-body">
+          <div class="cc-header">
+            <div class="cc-icon" style="background:${c.color}22">${c.emoji}</div>
+            <div style="flex:1;min-width:0">
+              <div class="cc-name">${esc(c.name)}</div>
+              <div class="cc-meta">${allSecs2str(all)} total · ${S.sessions.filter(s=>s.cid===c.id).length} sessions</div>
+              ${active?'<div class="running-badge" style="margin-top:5px"><span class="rdot"></span>Running now</div>':''}
+            </div>
           </div>
         </div>
-      </div>
-      <div class="sparkline">${sparkHtml}</div>
-      <div class="cc-stats">
-        <div class="cc-stat">
-          <div class="cc-stat-val" style="color:${c.color}">${fmtHM(wk)}</div>
-          <div class="cc-stat-lbl">This Week</div>
+        <div class="sparkline">${sparkHtml}</div>
+        <div class="cc-stats">
+          <div class="cc-stat">
+            <div class="cc-stat-val" style="color:${c.color}">${fmtHM(wk)}</div>
+            <div class="cc-stat-lbl">This Week</div>
+          </div>
+          <div class="cc-stat" style="padding-left:14px">
+            <div class="cc-stat-val">${fmtHM(td)}</div>
+            <div class="cc-stat-lbl">Today</div>
+          </div>
         </div>
-        <div class="cc-stat" style="padding-left:14px">
-          <div class="cc-stat-val">${fmtHM(td)}</div>
-          <div class="cc-stat-lbl">Today</div>
-        </div>
+      </button>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button onclick="openEditCourse('${c.id}')" style="flex:1;background:var(--surf2);border:1px solid var(--border);color:var(--muted2);border-radius:10px;padding:8px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Edit</button>
+        <button onclick="confirmDeleteCourse('${c.id}')" style="flex:1;background:var(--surf2);border:1px solid var(--border);color:var(--rose);border-radius:10px;padding:8px;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">🗑 Delete</button>
       </div>
-    </button>`;
+    </div>`;
   }).join('');
 }
 
@@ -554,8 +596,10 @@ function buildPickers(){
     `<div class="emoji-opt${e===newEmoji?' on':''}" onclick="pickE('${e}')">${e}</div>`).join('');
   document.getElementById('color-row').innerHTML=COLORS.map(c=>
     `<div class="c-dot${c===newColor?' on':''}" style="background:${c}" onclick="pickC('${c}')"></div>`).join('');
+  const ce=document.getElementById('emoji-custom'); if(ce) ce.value=newEmoji;
 }
 function pickE(e){newEmoji=e;buildPickers();}
+function onCustomEmoji(v){ const e=v.trim(); if(e){newEmoji=e; document.getElementById('emoji-row').querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('on'));} }
 function pickC(c){newColor=c;buildPickers();}
 function saveNewCourse(){
   const name=document.getElementById('m-name').value.trim();
@@ -596,45 +640,44 @@ function renderCourse(){
   }
 
   // Stats
+  const vis=getStatsVis(c.id);
   const wk=weekSecs(c.id,0), td=todaySecs(c.id);
   const avg=avgWeek(c.id);
-  document.getElementById('c-stat-grid').innerHTML=`
-    <div class="stat-tile hi">
-      <div class="stat-tile-val">${fmtHM(wk)}</div><div class="stat-tile-lbl">This Week</div></div>
-    <div class="stat-tile">
-      <div class="stat-tile-val">${fmtHM(td)}</div><div class="stat-tile-lbl">Today</div></div>
-    <div class="stat-tile">
-      <div class="stat-tile-val">${fmtHM(all)}</div><div class="stat-tile-lbl">All Time</div></div>
-    <div class="stat-tile">
-      <div class="stat-tile-val">${fmtHM(avg)}</div><div class="stat-tile-lbl">Avg/Week</div></div>`;
+  const tiles=[];
+  if(vis['tile-week'])    tiles.push(`<div class="stat-tile hi"><div class="stat-tile-val">${fmtHM(wk)}</div><div class="stat-tile-lbl">This Week</div></div>`);
+  if(vis['tile-today'])   tiles.push(`<div class="stat-tile"><div class="stat-tile-val">${fmtHM(td)}</div><div class="stat-tile-lbl">Today</div></div>`);
+  if(vis['tile-alltime']) tiles.push(`<div class="stat-tile"><div class="stat-tile-val">${fmtHM(all)}</div><div class="stat-tile-lbl">All Time</div></div>`);
+  if(vis['tile-avg'])     tiles.push(`<div class="stat-tile"><div class="stat-tile-val">${fmtHM(avg)}</div><div class="stat-tile-lbl">Avg/Week</div></div>`);
+  document.getElementById('c-stat-grid').innerHTML=tiles.join('');
 
   // 7-day chart
-  const days=last7(c.id), mx7=Math.max(...days.map(d=>d.s),1);
-  document.getElementById('c-7d').innerHTML=days.map(d=>{
-    const pct=(d.s/mx7)*100;
-    const isToday=d.date.toDateString()===new Date().toDateString();
-    return `<div class="bar-wrap" style="height:100%">
-      <div class="bar-bg" style="width:100%;flex:1">
-        <div class="bar-fill" style="height:${pct}%;background:${isToday?c.color:c.color+'77'}"></div>
-      </div>
-      <div class="bar-lbl" style="${isToday?'color:'+c.color:''}">${d.lbl}</div>
-    </div>`;
-  }).join('');
-
+  const c7dCard=document.getElementById('c-7d').closest('.card');
+  if(c7dCard) c7dCard.style.display=vis['chart-7d']?'':'none';
+  if(vis['chart-7d']){
+    const days=last7(c.id), mx7=Math.max(...days.map(d=>d.s),1);
+    document.getElementById('c-7d').innerHTML=days.map(d=>{
+      const pct=(d.s/mx7)*100;
+      const isToday=d.date.toDateString()===new Date().toDateString();
+      return `<div class="bar-wrap" style="height:100%"><div class="bar-bg" style="width:100%;flex:1"><div class="bar-fill" style="height:${pct}%;background:${isToday?c.color:c.color+'77'}"></div></div><div class="bar-lbl" style="${isToday?'color:'+c.color:''}">${d.lbl}</div></div>`;
+    }).join('');
+  }
   // 8-week
-  const wks=last8weeks(c.id), mxw=Math.max(...wks.map(w=>w.s),1);
-  document.getElementById('c-8w').innerHTML=wks.map((w,i)=>{
-    const pct=(w.s/mxw)*100, cur=i===wks.length-1;
-    return `<div class="bar-wrap" style="height:100%">
-      <div class="bar-bg" style="width:100%;flex:1">
-        <div class="bar-fill" style="height:${pct}%;background:${cur?c.color:c.color+'44'}"></div>
-      </div>
-      <div class="bar-lbl" style="${cur?'color:'+c.color:''}">${w.lbl}</div>
-    </div>`;
-  }).join('');
+  const c8wCard=document.getElementById('c-8w').closest('.card');
+  if(c8wCard) c8wCard.style.display=vis['chart-8w']?'':'none';
+  if(vis['chart-8w']){
+    const wks=last8weeks(c.id), mxw=Math.max(...wks.map(w=>w.s),1);
+    document.getElementById('c-8w').innerHTML=wks.map((w,i)=>{
+      const pct=(w.s/mxw)*100, cur=i===wks.length-1;
+      return `<div class="bar-wrap" style="height:100%"><div class="bar-bg" style="width:100%;flex:1"><div class="bar-fill" style="height:${pct}%;background:${cur?c.color:c.color+'44'}"></div></div><div class="bar-lbl" style="${cur?'color:'+c.color:''}">${w.lbl}</div></div>`;
+    }).join('');
+  }
 
   renderPeriodPills();
-  renderSessions(c);
+  const sessLabel=document.querySelector('#screen-course .sec-label:last-of-type');
+  const sessEl=document.getElementById('c-sessions');
+  if(sessLabel) sessLabel.style.display=vis['sessions']?'':'none';
+  if(sessEl) sessEl.style.display=vis['sessions']?'':'none';
+  if(vis['sessions']) renderSessions(c);
 }
 
 function renderSessions(c){
@@ -903,11 +946,7 @@ function fmtHM(s){const h=~~(s/3600),m=~~((s%3600)/60);if(h)return`${h}h ${m}m`;
 function allSecs2str(s){const h=~~(s/3600),m=~~((s%3600)/60);if(h)return`${h}h ${m}m`;return`${m}m`;}
 function p(n){return String(n).padStart(2,'0');}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2400);
-}
+function toast(msg){}
 
 
 /* ─── LOG TIME MANUALLY ─── */
@@ -958,6 +997,91 @@ function saveLoggedTime(){
   renderCourse();
 }
 
+
+
+/* ─── EDIT / DELETE COURSE ─── */
+let editingCid = null;
+let ecColor = COLORS[0], ecEmoji = EMOJIS[0];
+
+function openEditCourse(id){
+  editingCid = id;
+  const c = S.courses.find(x=>x.id===id);
+  ecColor = c.color; ecEmoji = c.emoji;
+  document.getElementById('ec-name').value = c.name;
+  document.getElementById('ec-emoji-custom').value = c.emoji;
+  buildEditPickers();
+  document.getElementById('edit-course-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('ec-name').focus(), 380);
+}
+function closeEditCourse(){ document.getElementById('edit-course-modal').classList.remove('open'); editingCid=null; }
+function maybeCloseEdit(e){ if(e.target===document.getElementById('edit-course-modal')) closeEditCourse(); }
+function buildEditPickers(){
+  document.getElementById('ec-emoji-row').innerHTML=EMOJIS.map(e=>
+    `<div class="emoji-opt${e===ecEmoji?' on':''}" onclick="pickEE('${e}')">${e}</div>`).join('');
+  document.getElementById('ec-color-row').innerHTML=COLORS.map(c=>
+    `<div class="c-dot${c===ecColor?' on':''}" style="background:${c}" onclick="pickEC('${c}')"></div>`).join('');
+}
+function pickEE(e){ ecEmoji=e; buildEditPickers(); document.getElementById('ec-emoji-custom').value=e; }
+function pickEC(c){ ecColor=c; buildEditPickers(); }
+function onCustomEmojiEdit(v){ const e=v.trim(); if(e){ ecEmoji=e; document.getElementById('ec-emoji-row').querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('on')); } }
+function saveEditCourse(){
+  const name=document.getElementById('ec-name').value.trim();
+  if(!name){ toast('Enter a course name'); return; }
+  const c=S.courses.find(x=>x.id===editingCid);
+  c.name=name; c.emoji=ecEmoji; c.color=ecColor;
+  save(); closeEditCourse(); renderHome();
+  if(curScreen==='course'&&activeCid===editingCid) renderCourse();
+  toast('Course updated!');
+}
+
+function confirmDeleteCourse(id){
+  const c=S.courses.find(x=>x.id===id);
+  if(!confirm(`Delete "${c.name}"? All its sessions will also be deleted.`)) return;
+  if(running&&activeCid===id) resetTimer();
+  S.sessions=S.sessions.filter(s=>s.cid!==id);
+  S.courses=S.courses.filter(x=>x.id!==id);
+  save(); renderHome(); toast('Course deleted');
+}
+
+/* ─── STATS VISIBILITY ─── */
+const DEFAULT_STATS = {
+  'tile-week':true,'tile-today':true,'tile-alltime':true,'tile-avg':true,
+  'chart-7d':true,'chart-8w':true,'sessions':true
+};
+let courseStatsVis = {}; // { cid: { tile-week: bool, ... } }
+
+function getStatsVis(cid){
+  if(!courseStatsVis[cid]) courseStatsVis[cid]={...DEFAULT_STATS};
+  return courseStatsVis[cid];
+}
+
+function openStatsSettings(){
+  const vis=getStatsVis(activeCid);
+  const items=[
+    {key:'tile-week',   label:'Stat: This Week'},
+    {key:'tile-today',  label:'Stat: Today'},
+    {key:'tile-alltime',label:'Stat: All Time'},
+    {key:'tile-avg',    label:'Stat: Avg/Week'},
+    {key:'chart-7d',    label:'Chart: Last 7 Days'},
+    {key:'chart-8w',    label:'Chart: 8-Week Trend'},
+    {key:'sessions',    label:'Session History'},
+  ];
+  document.getElementById('stats-toggles').innerHTML=items.map(item=>`
+    <label style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <span style="font-size:15px">${item.label}</span>
+      <input type="checkbox" data-key="${item.key}" ${vis[item.key]?'checked':''} style="width:18px;height:18px;accent-color:var(--amber);cursor:pointer">
+    </label>`).join('');
+  document.getElementById('stats-modal').classList.add('open');
+}
+function maybeCloseStats(e){ if(e.target===document.getElementById('stats-modal')) saveStatsSettings(); }
+function saveStatsSettings(){
+  const vis=getStatsVis(activeCid);
+  document.querySelectorAll('#stats-toggles input[data-key]').forEach(cb=>{
+    vis[cb.dataset.key]=cb.checked;
+  });
+  document.getElementById('stats-modal').classList.remove('open');
+  renderCourse();
+}
 
 /* ─── PERIODS ─── */
 const PERIOD_EMOJIS=['📅','📆','🎓','🏫','☀️','❄️','🍂','🌸','🏋️','🎯','📖','🔬','💻','🎨','🌍'];
